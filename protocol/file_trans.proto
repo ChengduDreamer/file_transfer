@@ -1,0 +1,250 @@
+syntax = "proto3";
+
+package ykfiletrans;
+
+enum Code
+{
+	kCodeNone = 0;
+	
+	kCodeOk = 1;
+	
+	kCodeError = 2;
+
+	kCodeModuleDisabled = 3;
+
+	kCodeReqBodyIncomplete = 4;
+
+	kCodeNonSupport = 5;
+
+	kCodeTimeout = 6;
+}
+
+enum Type
+{
+	kFileInstructEvent = 0;
+
+	kFileInstructRespGetFileList = 1;
+
+	kFileInstructRespRename = 2;
+
+	kFileInstructRespCreateNewFolder = 3;
+
+	kFileInstructRespBatchCreateFolders = 4;
+
+	kFileTransmitDataPacket = 5;
+
+	kFileInstructRespExists = 6;
+
+	kFileTransmitRespUpload = 7;
+
+	kFileTransmitRespDownload = 8;
+
+	kFileTransmitSaveFileException = 9;
+	
+	kFileInstructRespDel = 10;
+}
+
+message Hello
+{
+	string uuid = 1;
+	string server_version = 2;
+}
+
+message FileDetailInfo 
+{
+	enum FileType 
+	{
+		kDisk = 0;
+		kFolder = 1;
+		kFile = 2;
+		kDeskFolder = 3;
+	}
+	FileType file_type = 1;
+	string file_name = 2;
+	string file_path = 3;
+	uint64 file_size = 4;
+	uint64 file_date = 5;
+}
+ 
+// 返回文件列表
+message FileInstructRespGetFileList {
+	bool ret = 1;
+	string msg_of_error = 2;
+	repeated FileDetailInfo file_infos = 3;
+	string path = 4;
+	string file_permission_path = 5;
+}
+
+// 返回批量创建文件夹的结果
+message FileInstructRespBatchCreateFolders {
+	// 未能成功创建的目录列表
+	repeated string paths_of_no_create_folder = 1;
+	string msg_of_error = 2;
+}
+
+// 返回创建新建文件夹的结果
+message FileInstructRespCreateNewFolder {
+	bool ret = 1;
+	string path_of_parent = 2;
+	string path_of_new_created = 3;
+	string msg_of_error = 4;
+}
+
+// 返回重命名的结果
+message FileInstructRespRename {
+	bool ret = 1;
+	string path_of_old = 2;
+	string path_of_new = 3;
+	string msg_of_error = 4;
+}
+
+// 返回文件是否存在
+message FileInstructRespExists {
+	bool ret = 1;
+	string path = 2;
+	uint64 size = 3;
+	uint64 date = 4;
+}
+
+// 返回删除目录的结果
+message FileInstructRespDel {
+	bool ret = 1;
+	repeated string paths_of_no_del  = 2;
+	string msg_of_error = 3;
+}
+
+// 文件传输数据包
+message FileTransmitDataPacket {
+	enum TransmitDirection {
+		kUpload = 0;
+		kDownload = 1;
+	}
+	enum TransmitState {
+		kTransmitting = 0; // 传输中
+		kEnd = 1;          //  传输结束
+		kError = 2;        //  有异常情况
+		kCancel = 3;       //  用户取消
+	}
+	TransmitDirection transmit_direction = 1;
+	string src_file_path = 2;
+	string target_file_path = 3;
+	uint64 file_size = 4;
+
+	string task_id = 5;  
+	// 此任务数据包序列
+	uint64 index = 6;
+	// 是否是最后一个数据包
+	TransmitState transmit_state  = 7;
+	// 文件内容
+	bytes data = 8;
+}
+
+// 文件上传的响应
+message FileTransmitRespUpload {
+	enum UploadErrorCause {
+		kFailedOpen = 0; // 文件无法打开
+		kFailedVerify = 1;   // 校验失败
+		kFailedWrite = 2;    // 写文件出现异常
+		kUnknow = 3;         // 未知原因 
+		kDirFailedCreate = 4;
+		kPacketLoss = 5;
+	}
+	bool res = 1;
+	UploadErrorCause error_cause = 2;
+	string src_file_path = 3;
+	string target_file_path = 4;
+	string task_id = 5;
+}
+
+// 文件下载的响应
+message FileTransmitRespDownload {
+	enum DownloadErrorCause {
+		kFailedOpen = 0;     // 文件无法打开
+		kFailedRead = 1;    // 读文件出现异常
+		kUnknow = 2;         // 未知原因 
+		kNoExists = 3;    
+	}
+	bool res = 1;
+	DownloadErrorCause error_cause = 2;
+	string src_file_path = 3;
+	string target_file_path = 4;
+	string task_id = 5;
+}
+
+// 写文件过程中发生异常或用户取消
+message FileTransmitSaveFileException {
+	enum SaveFileExceptionCause {
+		kFailedOpen = 0;     // 文件无法打开
+		kFailedWrite = 1;    // 写文件出现异常
+		kCancel = 2;         // 用户取消
+		kDirFailedCreate = 3;
+		kPacketLoss = 4;
+		kUnknow = 5;
+	}
+	SaveFileExceptionCause error_cause = 1;
+	string src_file_path = 2;
+	string target_file_path = 3;
+	string task_id = 4;
+}
+
+message FileInstructionsEvent
+{
+	// 文件操作相关
+	enum InstructionsType
+	{
+		kDel = 0;
+		kBatchCreateFolders = 1;
+		kCreateNewFolder = 2;
+		kIsExists = 3;
+		kRename = 4;
+		kGetFilesList = 5;
+		kCancelDownload = 6;
+		kCancelUpload = 7;
+		kDownload = 8;
+	}
+	InstructionsType instruct_type = 1;
+
+	// 要删除的文件列表
+	repeated string paths_of_del = 2;
+
+	// 要批量创建的文件夹
+	repeated string paths_of_create_folder = 3;
+
+	// 在此目录下创建新文件夹
+	string path_of_create_new_folder = 4;
+
+	// 判断此文件是否存在
+	string path_of_judge_exists = 5;
+
+	// 重命名
+	string path_of_rename = 6;
+	string name_of_rename = 7;
+
+	// 获取此目录下的文件以及文件夹列表
+	string path_of_filelist = 8;
+	
+	// 传输任务id
+	string task_id = 9;
+
+	// 要下载的文件
+	string path_of_download = 10;
+	// 要保存的文件路径 
+	string path_of_save = 11;
+}
+
+message Message
+{	
+    Type       type = 1;	
+    int32      sequence = 2;
+	FileInstructionsEvent file_instruct_event = 30;
+	FileInstructRespGetFileList file_instruct_resp_get_file_list = 40;
+	FileInstructRespBatchCreateFolders file_instruct_resp_batch_create_folders = 50;
+	FileTransmitDataPacket file_transmit_data_packet = 60;
+	FileInstructRespExists file_instruct_resp_exists = 70;
+	FileTransmitRespUpload file_transmit_resp_upload = 80;
+	FileTransmitRespDownload file_transmit_resp_download = 90;
+	FileTransmitSaveFileException file_transmit_save_file_exception = 100;
+	FileInstructRespDel file_instruct_resp_del = 110;
+	FileInstructRespCreateNewFolder file_instruct_resp_create_new_folder = 120;
+	FileInstructRespRename file_instruct_resp_rename = 130;
+}
